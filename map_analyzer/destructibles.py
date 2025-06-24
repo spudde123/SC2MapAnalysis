@@ -128,6 +128,7 @@ destructable_6x6 = {
     UnitTypeId.DESTRUCTIBLEICE6X6,
     UnitTypeId.DESTRUCTIBLEROCK6X6,
     UnitTypeId.DESTRUCTIBLEROCKEX16X6,
+    UnitTypeId.DESTRUCTIBLEEXPEDITIONGATE6X6,
 }
 
 destructable_BLUR = {
