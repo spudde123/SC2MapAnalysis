@@ -16,6 +16,12 @@ from .destructibles import buildings_2x2, buildings_3x3, buildings_5x5
 if TYPE_CHECKING:
     from map_analyzer.MapData import MapData
 
+CREEP_TUMOR_TYPES: set[UnitTypeId] = {
+    UnitTypeId.CREEPTUMOR,
+    UnitTypeId.CREEPTUMORQUEEN,
+    UnitTypeId.CREEPTUMORBURROWED,
+}
+
 
 def _bounded_circle(center, radius, shape):
     xx, yy = np.ogrid[: shape[0], : shape[1]]
@@ -142,7 +148,7 @@ class MapAnalyzerPather:
         nonpathables.extend(self.map_data.bot.enemy_structures.not_flying)
         nonpathables = nonpathables.filter(
             lambda x: (x.type_id != UnitTypeId.SUPPLYDEPOTLOWERED or x.is_active)
-            and (x.type_id != UnitTypeId.CREEPTUMOR or not x.is_ready)
+            and (x.type_id not in CREEP_TUMOR_TYPES or not x.is_ready)
         )
 
         for obj in nonpathables:
