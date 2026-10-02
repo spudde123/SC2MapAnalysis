@@ -1,38 +1,41 @@
-#name: RunTests
-#
-#on:
-#  push:
-#    branches: [ develop ]
-#  pull_request:
-#    branches: [ master, develop ]
-#  workflow_call:
-#
-#
-#jobs:
-#  build:
-#    runs-on: ${{ matrix.os }}
-#    strategy:
-#      matrix:
-#        os:  [ubuntu-latest, windows-latest, macos-latest]
-#        python-version: [3.12]
-#
-#    steps:
-#      - uses: actions/checkout@v2
-#      - name: Set up ${{ matrix.python-version }}
-#        uses: actions/setup-python@v2
-#        with:
-#          python-version: ${{ matrix.python-version }}
-#      - name: Install dependencies
-#        run: |
-#          pipx install poetry
-#          poetry install --with dev
-#      - name: Test with pytest + Coverage
-#        run: |
-#          poetry run pytest --html=html/${{ matrix.os }}-test-results-${{ matrix.python-version }}.html
-#      - name: Upload pytest test results
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: pytest-results-${{ matrix.os }}-${{ matrix.python-version }}
-#          path: html/${{ matrix.os }}-test-results-${{ matrix.python-version }}.html
-#        # Use always() to always run this step to publish test results when there are test failures
-#        if: ${{ always() }}
+name: RunTests
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ master, develop ]
+  workflow_call:
+
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:  [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry==1.8.4
+      - name: Set up ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: poetry
+      - name: Install dependencies
+        run: poetry install --with dev
+      - name: Test with pytest + Coverage
+        run: poetry run pytest --html=pytest-results.html
+      - name: Upload pytest test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results-${{ matrix.os }}-${{ matrix.python-version }}
+          path: pytest-results.html
+        # Use always() to always run this step to publish test results when there are test failures
+        if: ${{ always() }}

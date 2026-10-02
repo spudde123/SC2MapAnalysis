@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy as np
@@ -29,7 +30,7 @@ def _bounded_circle(center, radius, shape):
     return np.nonzero(circle <= radius**2)
 
 
-def draw_circle(c, radius, shape=None):
+def _draw_circle(c, radius, shape=None):
     center = np.array(c)
     upper_left = np.ceil(center - radius).astype(int)
     lower_right = np.floor(center + radius).astype(int) + 1
@@ -44,6 +45,30 @@ def draw_circle(c, radius, shape=None):
 
     rr, cc = _bounded_circle(shifted_center, radius, bounding_shape)
     return rr + upper_left[0], cc + upper_left[1]
+
+
+@lru_cache(maxsize=8192)
+def _cached_circle(cx: float, cy: float, radius: float, shape: Tuple[int, ...]):
+    rr, cc = _draw_circle((cx, cy), radius, shape)
+    # Shared between callers: read-only so an in-place edit raises instead of
+    # corrupting every later disk at this spot.
+    rr.setflags(write=False)
+    cc.setflags(write=False)
+    return rr, cc
+
+
+def draw_circle(c, radius, shape=None):
+    """Indices of the grid cells inside a circle, memoized by (center, radius, shape).
+
+    Influence grids redraw a disk per unit every step; a unit standing still
+    (static defence, sieged or idle units) asks for the identical disk each
+    time. The returned arrays are read-only.
+    """
+    if shape is None:
+        return _draw_circle(c, radius, shape)
+    return _cached_circle(
+        float(c[0]), float(c[1]), float(radius), tuple(int(d) for d in shape)
+    )
 
 
 class MapAnalyzerPather:

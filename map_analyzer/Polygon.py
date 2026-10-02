@@ -1,3 +1,4 @@
+import math
 from functools import lru_cache
 from typing import TYPE_CHECKING, List, Set, Union
 
@@ -136,7 +137,7 @@ class Polygon:
         s2 = max(pl)
         x1, y1 = s1[0], s1[1]
         x2, y2 = s2[0], s2[1]
-        return np.math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
     @property
     @lru_cache()

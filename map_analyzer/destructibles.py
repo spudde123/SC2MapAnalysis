@@ -1,6 +1,7 @@
 """
 https://github.com/DrInfy/sharpy-sc2/blob/develop/sharpy/managers/unit_value.py
 """
+
 from sc2.ids.unit_typeid import UnitTypeId
 
 buildings_2x2 = {

@@ -16,11 +16,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
 
       - name: Install poetry
-        run: pipx install poetry
+        run: pipx install poetry==1.8.4
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -44,12 +42,12 @@ jobs:
   commit:
     name: Commit all binaries
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     needs: build
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.head_ref }}
+        uses: actions/checkout@v4
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -82,4 +80,4 @@ jobs:
           git add ./map_analyzer/cext/*
           git status
           git commit -m "Add all binaries for multiple platforms and Python versions" || echo "No changes to commit"
-          git push origin ${{ github.ref }}
+          git push origin ${{ github.ref_name }}

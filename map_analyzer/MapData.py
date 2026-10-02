@@ -560,7 +560,7 @@ class MapData:
 
     @staticmethod
     def indices_to_points(
-        indices: Union[ndarray, Tuple[ndarray, ndarray]]
+        indices: Union[ndarray, Tuple[ndarray, ndarray]],
     ) -> Set[Union[Tuple[float, float], Point2]]:
         """
         :rtype: :class:`.set` (Union[:class:`.tuple` (:class:`.int`, :class:`.int`),
@@ -576,7 +576,7 @@ class MapData:
 
     @staticmethod
     def points_to_indices(
-        points: Union[Set[Point2], List[Point2]]
+        points: Union[Set[Point2], List[Point2]],
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         :rtype: Tuple[numpy.ndarray, numpy.ndarray]

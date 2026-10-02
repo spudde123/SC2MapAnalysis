@@ -10,22 +10,25 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        python-version: [ 3.12 ]
+        python-version: [ '3.12' ]
 
     steps:
       # check-out repo
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry==1.8.4
       - name: Set up ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: poetry
       - name: Install dependencies
-        run: |
-          pipx install poetry==1.8.4
-          poetry install --with dev
+        run: poetry install --with dev
       # run linters
       - name: Run linters
         run: |
