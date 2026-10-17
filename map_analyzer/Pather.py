@@ -98,6 +98,11 @@ class MapAnalyzerPather:
             self.default_grid[116, 43] = 1
             self.default_grid[51, 120] = 1
 
+        # Watchtowers have permanent 2x2 footprints.
+        for tower in self.map_data.bot.watchtowers:
+            x, y = map(int, tower.position)
+            self.default_grid[x - 1 : x + 1, y - 1 : y + 1] = 0
+
         self.default_grid_nodestr = self.default_grid.copy()
 
         self.destructables_included = {}
