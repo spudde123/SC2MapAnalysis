@@ -22,8 +22,9 @@ from .cext import CMapChoke, CMapInfo
 from .constants import (
     BINARY_STRUCTURE,
     CORNER_MIN_DISTANCE,
-    MAX_REGION_AREA,
+    MAX_REGION_HOLE_AREA,
     MIN_REGION_AREA,
+    TERRAIN_HEIGHT_STEP,
 )
 from .exceptions import CustomDeprecationWarning
 
@@ -864,7 +865,7 @@ class MapData:
         i = 0
         while i < len(self.polygons):
             pol = self.polygons[i]
-            if not MAX_REGION_AREA > pol.area > MIN_REGION_AREA:
+            if pol.area <= MIN_REGION_AREA:
                 self.polygons.pop(i)
                 continue
             if pol.is_choke:
@@ -893,22 +894,53 @@ class MapData:
         self.connectivity_graph = self.pather.connectivity_graph
 
     def _calc_grid(self) -> None:
-        # converting the placement grid to our own kind of grid
-        # cleaning the grid and then searching for 2x2 patterned regions
-        grid = binary_fill_holes(self.placement_arr).astype(int)
-        # for our grid,  mineral walls are considered as a barrier between regions
+        # Label buildable terrain separately at each elevation.
+        buildable = self.placement_arr.astype(bool).copy()
+        ramp_mask = np.zeros(buildable.shape, dtype=bool)
+        for ramp in self.bot.game_info.map_ramps:
+            for point in ramp.points:
+                ramp_mask[int(point.y), int(point.x)] = True
+        buildable[ramp_mask] = False
+
+        # Mineral walls remain barriers, including during hole cleanup.
+        blockers = np.zeros(buildable.shape, dtype=bool)
         for point in self.resource_blockers:
-            grid[int(point[1])][int(point[0])] = 0
-            for n in point.neighbors4:
-                point_ = Point2((n.rounded[0], n.rounded[1]))
-                if point_[0] < grid.shape[1] and point_[1] < grid.shape[0]:
-                    grid[int(point_[1])][int(point_[0])] = 0
+            for p in {point, *point.neighbors4}:
+                x, y = int(p.x), int(p.y)
+                if 0 <= x < buildable.shape[1] and 0 <= y < buildable.shape[0]:
+                    blockers[y, x] = True
+        buildable[blockers] = False
 
+        # Anchor the 16-unit terrain bands to the dominant buildable plateau,
+        # so a uniform height offset cannot change the segmentation.
+        heights = self.terrain_height.astype(np.int16)
+        samples = heights[buildable]
+        origin = int(np.bincount(samples).argmax()) if samples.size else 0
+        levels = (heights - origin + TERRAIN_HEIGHT_STEP // 2) // TERRAIN_HEIGHT_STEP
+
+        allowed = (self.path_arr != 0) | buildable
         s = generate_binary_structure(BINARY_STRUCTURE, BINARY_STRUCTURE)
-        labeled_array, num_features = ndlabel(grid, structure=s)
+        self.region_grid = np.zeros(buildable.shape, dtype=int)
+        label_offset = 0
+        for level in np.unique(levels[buildable]):
+            same_level = levels == level
+            mask = buildable & same_level
+            # Fill only small, walkable holes on this level. Never fill across
+            # ramps, mineral walls, cliffs, or an enclosed lower plateau.
+            holes = binary_fill_holes(mask) & ~mask
+            hole_labels, _ = ndlabel(holes, structure=s)
+            hole_sizes = np.bincount(hole_labels.ravel())
+            small_holes = (hole_labels != 0) & (
+                hole_sizes[hole_labels] <= MAX_REGION_HOLE_AREA
+            )
+            mask |= small_holes & same_level & allowed & ~ramp_mask & ~blockers
+            labeled, count = ndlabel(mask, structure=s)
+            occupied = labeled != 0
+            self.region_grid[occupied] = labeled[occupied] + label_offset
+            label_offset += count
 
-        self.region_grid = labeled_array.astype(int)
-        self.regions_labels = np.unique(self.region_grid)
+        # Label zero is background, not a region regardless of its size.
+        self.regions_labels = np.arange(1, label_offset + 1)
         vb_points = self._vision_blockers
 
         # some maps has no vision blockers
@@ -1025,14 +1057,14 @@ class MapData:
         # compute Region
 
         label_count = 0
-        for i in range(len(self.regions_labels)):
+        for i in self.regions_labels:
             region = Region(
                 array=np.where(self.region_grid == i, 1, 0).T,
                 label=i,
                 map_data=self,
                 map_expansions=self.base_locations,
             )
-            if MAX_REGION_AREA > region.area > MIN_REGION_AREA:
+            if region.area > MIN_REGION_AREA:
                 region.label = label_count
                 self.regions[label_count] = region
                 label_count += 1
